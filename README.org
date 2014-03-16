@@ -50,25 +50,22 @@ rounding errors or both. Also the blip server may have been down for some
 period of time due to maintanence or other hacking and thus not been able
 to log some blinks.
 
-
-*** /blip
-
-  Use this URI to do long-polling. The server will not answer the request
-  immediately, but instead wait until the next blink is detected and
-  then return that point.
+- /blip
+  : Use this URI to do long-polling. The server will not answer the request
+  : immediately, but instead wait until the next blink is detected and
+  : then return that point.
   
-*** /last
+- /last
+  : Immediately returns the last point read.
 
-  Immediately returns the last point read.
+- /last/<n>
 
-*** /last/<n>
+  : Returns a list points read during the last `<n>` milliseconds.
+  
+  : If there are more than 2000 such points only the first 2000 will
+  : be returned.
 
-  Returns a list points read during the last `<n>` milliseconds.
-
-  If there are more than 2000 such points only the first 2000 will
-  be returned.
-
-*** /since/<n>
+- /since/<n>
 
   Returns a list of points since `<n>`, which must be a unix timestamp in
   milliseconds.
@@ -115,12 +112,14 @@ $ psql -U powermeter -c "\d+"
 
 If you have problems connecting to the database, try changing =peer= to =trust= in the following file
 
-=$ sudo nano /etc/postgresql/9.1/main/pg_hba.conf=
-=local   all             all                                     peer=
+#+BEGIN_SRC 
+$ sudo nano /etc/postgresql/9.1/main/pg_hba.conf=
+local   all             all                                     peer
+#+END_SRC
 
 ** Connect to the server
 
-~blip.lua~ is also a server. It is set to listen to port 8080 by standard, eg. ~localhost:8080~ should give you a nice graph.
+~blip.lua~ is also a server. It is set to listen to port 8080 by standard, eg. ~http://localhost:8080~ should give you a nice graph.
 
 ** Create alias for =/dev/ttyUSB0= 
 
@@ -138,7 +137,7 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{seria
 and update udev
 =$ sudo udevadm trigger --action=change=
 
-=SYMLINK+="arduino"= means that UDEV should create a symlink =/dev/arduino= pointing to the actual =/dev/ttyUSB*= device. In other words the device names will continue to be assigned ad-hoc but the symbolic links will always point to the right device node.
+SYMLINK+="arduino" means that UDEV should create a symlink =/dev/arduino= pointing to the actual =/dev/ttyUSB*= device. In other words the device names will continue to be assigned ad-hoc but the symbolic links will always point to the right device node.
 
 * License
 

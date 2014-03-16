@@ -51,24 +51,24 @@ period of time due to maintanence or other hacking and thus not been able
 to log some blinks.
 
 
-*** \/blip
+*** /blip
 
   Use this URI to do long-polling. The server will not answer the request
   immediately, but instead wait until the next blink is detected and
   then return that point.
   
-*** \/last
+*** /last
 
   Immediately returns the last point read.
 
-*** \/last\/<n>
+*** /last/<n>
 
   Returns a list points read during the last `<n>` milliseconds.
 
   If there are more than 2000 such points only the first 2000 will
   be returned.
 
-*** \/since\/<n>
+*** /since/<n>
 
   Returns a list of points since `<n>`, which must be a unix timestamp in
   milliseconds.
@@ -81,35 +81,46 @@ to log some blinks.
 ** Create database
 
 Install postgresSQL
-$ sudo apt-get install postgresql
+
+=$ sudo apt-get install postgresql=
 
 Log into the database as /postgres/ user and create the user powermeter
+
+#+BEGIN_SRC
 $ sudo -u postgres psql
 =# CREATE USER powermeter CREATEDB;
+#+END_SRC
 
 exit by C-d and create powermeter database with the relevant table.
 
+#+BEGIN_SRC
 $ createdb -U powermeter powermeter 
 $ psql -U powermeter
 => CREATE TABLE readings (
    stamp real,
    ms real );
+#+END_SRC
 
 And you're done!
 
 Get the database size
+#+BEGIN_SRC
 $ sudo -u postgres psql -U powermeter -c "\d+"
+#+END_SRC
 
 or as root
+#+BEGIN_SRC 
 $ psql -U powermeter -c "\d+"
+#+END_SRC
 
-If you have problems connecting to the database, try changing =peer= to =trust= in the following line
+If you have problems connecting to the database, try changing =peer= to =trust= in the following file
+
 =$ sudo nano /etc/postgresql/9.1/main/pg_hba.conf=
 =local   all             all                                     peer=
 
 ** Connect to the server
 
-blip.lua is also a server. It is set to listen to port 8080 by standard, eg. ~localhost:8080~ should give you a nice graph.
+~blip.lua~ is also a server. It is set to listen to port 8080 by standard, eg. ~localhost:8080~ should give you a nice graph.
 
 ** Create alias for =/dev/ttyUSB0= 
 
@@ -118,8 +129,11 @@ First find serial number for the Arduino (without grep a lot of info about the u
 =$ udevadm info -a -n /dev/ttyUSB* | grep '{serial}' | head -n1=
 
 Then add the rule
-=$ sudo nano /etc/udev/rules.d/99-usb-serial.rules=
+
+#+BEGIN_SRC
+$ sudo nano /etc/udev/rules.d/99-usb-serial.rules
 SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="A9007Q1P", SYMLINK+="arduino"
+#+END_SRC
 
 and update udev
 =$ sudo udevadm trigger --action=change=

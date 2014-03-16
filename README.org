@@ -3,8 +3,7 @@
 
 ** About
 
-
-This is the code running on power.studentergaarden.dk (only accessible from internal net) and [[power.labitat.dk]]
+This is the code running on [[power.studentergaarden.dk]] (only accessible from internal net) and [[power.labitat.dk]]
 
 It reads data from the Arduino connected to the serial port,
 which monitors the power meter, and serves
@@ -12,7 +11,7 @@ the power graph and an API for retrieving past power meter data.
 
 Each time the Arduino detects a new blink of the power meter it sends
 the amount of milliseconds passed since last blink as a decimal string followed
-by a newline (`"\n"`).
+by a newline (="\n"=).
 
 Upon receiving such a value from the Arduino the server attaches a timestamp
 (unix timestamp in milliseconds) and stores this pair in a database.
@@ -23,29 +22,28 @@ The server is written in [[http://www.lua.org][lua]] using the [[https://github.
 along with the [[https://github.com/esmil/lem-streams][stream]] and [[https://github.com/esmil/lem-postgres][PostgreSQL]] libraries
 for it.
 
-
 ** API
 
 
-The database stores pairs `(stamp, ms)` for each blink of the power meter.
-Here `stamp` is a unix timestamp in milliseconds describing roughly when
-the blink happened, and `ms` is the number of milliseconds which passed
+The database stores pairs =(stamp, ms)= for each blink of the power meter.
+Here =stamp= is a unix timestamp in milliseconds describing roughly when
+the blink happened, and =ms= is the number of milliseconds which passed
 since the last blink detected. We'll refer to such a pair as a "point".
 
 The power meter blinks once for each Wh of power used (600 times for each kWh).
 Use the formula
 
-    3600*600 / ms
+=3600*600 / ms=
 
 to calculate the (mean) power usage in Watts during the time interval
-`[stamp - ms, stamp]`.
+=[stamp - ms, stamp]=.
 
 The points can be fetched by doing HTTP requests to various URIs.
 So far [[http://json.org][JSON]] is the only output format supported and points will be
-returned in a JSON array `[stamp, ms]`.
+returned in a JSON array =[stamp, ms]=.
 
-Clients should not assume that `stamp1 + ms2 = stamp2` for every two
-consecutive points `(stamp1, ms1)` and `(stamp2, ms2)`. There may be time drifts,
+Clients should not assume that =stamp1 + ms2 = stamp2= for every two
+consecutive points =(stamp1, ms1)= and =(stamp2, ms2)=. There may be time drifts,
 rounding errors or both. Also the blip server may have been down for some
 period of time due to maintanence or other hacking and thus not been able
 to log some blinks.
@@ -70,7 +68,6 @@ to log some blinks.
   : If there are more than 2000 such points only the first 2000 will be
   : returned, so use 1 plus the timestamp of the last point in the list to request
   : the next 2000 points (again using this URI).
-
 
 ** Create database
 
@@ -110,7 +107,7 @@ $ psql -U powermeter -c "\d+"
 If you have problems connecting to the database, try changing =peer= to =trust= in the following file
 
 #+BEGIN_SRC 
-$ sudo nano /etc/postgresql/9.1/main/pg_hba.conf=
+$ sudo nano /etc/postgresql/9.1/main/pg_hba.conf
 local   all             all                                     peer
 #+END_SRC
 
@@ -135,7 +132,7 @@ and update udev
 
 =$ sudo udevadm trigger --action=change=
 
-SYMLINK+="arduino" means that UDEV should create a symlink =/dev/arduino= pointing to the actual =/dev/ttyUSB*= device. In other words the device names will continue to be assigned ad-hoc but the symbolic links will always point to the right device node.
+src{SYMLINK+="arduino"} means that UDEV should create a symlink =/dev/arduino= pointing to the actual =/dev/ttyUSB*= device. In other words the device names will continue to be assigned ad-hoc but the symbolic links will always point to the right device node.
 
 * License
 

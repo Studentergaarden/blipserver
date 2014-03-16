@@ -60,19 +60,16 @@ to log some blinks.
 
 - /last/<n>
 
-  : Returns a list points read during the last `<n>` milliseconds.
-  
+  : Returns a list points read during the last `<n>` milliseconds.  
   : If there are more than 2000 such points only the first 2000 will
   : be returned.
 
 - /since/<n>
 
-  Returns a list of points since `<n>`, which must be a unix timestamp in
-  milliseconds.
-
-  If there are more than 2000 such points only the first 2000 will be
-  returned, so use 1 plus the timestamp of the last point in the list to request
-  the next 2000 points (again using this URI).
+  : Returns a list of points since `<n>`, which must be a unix timestamp in milliseconds.
+  : If there are more than 2000 such points only the first 2000 will be
+  : returned, so use 1 plus the timestamp of the last point in the list to request
+  : the next 2000 points (again using this URI).
 
 
 ** Create database
@@ -119,7 +116,7 @@ local   all             all                                     peer
 
 ** Connect to the server
 
-~blip.lua~ is also a server. It is set to listen to port 8080 by standard, eg. ~http://localhost:8080~ should give you a nice graph.
+~blip.lua~  is set to listen to port 8080 as standard, eg. ~http://localhost:8080~ should give you a nice graph.
 
 ** Create alias for =/dev/ttyUSB0= 
 
@@ -135,6 +132,7 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{seria
 #+END_SRC
 
 and update udev
+
 =$ sudo udevadm trigger --action=change=
 
 SYMLINK+="arduino" means that UDEV should create a symlink =/dev/arduino= pointing to the actual =/dev/ttyUSB*= device. In other words the device names will continue to be assigned ad-hoc but the symbolic links will always point to the right device node.

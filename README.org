@@ -221,7 +221,7 @@ Maybe setup a init script:
 https://www.debian-administration.org/articles/28
 
 ** Example
-[[file:power-washing-machine.png][Example of a washing mashine]]
+[[file:power-washing-machine.png]]
 
 The ripples (around 100W) in this picture comes from a washing machine. The spike at 17:44 is either the compressor in a freezer or a fridge starting up. The 2kW power draw every 13-15 minutes is the coffeemaker that keeps water hot.
 

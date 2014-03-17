@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+#+STARTUP: inlineimages -*- coding: utf-8 -*-
+
 * blipserver
 
 ** About
@@ -30,10 +31,10 @@ Here =stamp= is a unix timestamp in milliseconds describing roughly when
 the blink happened, and =ms= is the number of milliseconds which passed
 since the last blink detected. We'll refer to such a pair as a "point".
 
-The power meter blinks once for each Wh of power used (600 times for each kWh).
-Use the formula
+The power meter blinks 600 times for each kWh).
+Use the formula (Wh/blip * 3600000[ms/h] / blip-interval[ms])
 
-=3600*600 / ms=
+=1000/600 * 36000000 / ms=
 
 to calculate the (mean) power usage in Watts during the time interval
 =[stamp - ms, stamp]=.
@@ -104,6 +105,11 @@ or as root
 $ psql -U powermeter -c "\d+"
 #+END_SRC
 
+You can delete misreading by eg:
+
+=\=> DELETE FROM readings WHERE ms < 600;=
+where all reading giving a consumption higher than =1000/600 * 3400000 / 600\= 9444W= is deleted.
+
 If you have problems connecting to the database, try changing =peer= to =trust= in the following file
 
 #+BEGIN_SRC 
@@ -133,6 +139,91 @@ and update udev
 =$ sudo udevadm trigger --action=change=
 
 src{SYMLINK+="arduino"} means that UDEV should create a symlink =/dev/arduino= pointing to the actual =/dev/ttyUSB*= device. In other words the device names will continue to be assigned ad-hoc but the symbolic links will always point to the right device node.
+
+** Make apache listen to port 8080
+It is not possible to =POST= information cross domain, subdomain, or port number, in this case port 80 and 8080.
+
+One way to circumvent this is to set up a very simple [[http://en.wikipedia.org/wiki/Reverse_proxy][reverse proxy]] (using [[mod_proxy]] if you are on Apache). This will allows to use relative paths in the AJAX request, while the HTTP server will be acting as a proxy to any "remote" location.
+
+The fundamental configuration directive to set up a reverse proxy in mod_proxy is the ProxyPass. It will typically be used as:
+
+=ProxyPass     /ajax/     http://www.localhost:8080/=
+
+In this case one would request =/ajax/blip= with jQuery, but in fact the server would serve this by acting as a proxy to =http://www.localhost:8080/blip= internally.
+
+
+The proxy module needs to be activated in apache
+
+=# a2enmod proxy_http=
+
+Then write the site-file as
+#+BEGIN_SRC
+# nano /etc/apache2/sites-available/power.studentergaarden.dk
+
+# Paw's <pawsen@gmail.com> take on meassuring and displaying the general power usage on SG
+<VirtualHost power.studentergaarden.dk:80>
+	#
+	# Public information
+	# ------------------
+    ServerName power
+	# ServerAlias rating
+	ServerAdmin nu@studentergaarden.dk
+
+    ## IMPORTANT!
+    ProxyPreserveHost On
+    ProxyRequests Off
+    ## The following line is actually the only needed line!
+    ProxyPass /ajax/ http://localhost:8080/
+    ProxyPassReverse /ajax/ http://localhost:8080/
+    <Proxy *>
+        Order deny,allow
+        Allow from all
+    </Proxy>
+    ## TO HERE!
+
+	#
+	# Logging
+	# -------
+	ErrorLog /var/log/apache2/power.studentergaarden.dk_error.log
+	CustomLog /var/log/apache2/power.studentergaarden.dk_access.log combined
+	CookieLog /var/log/apache2/power.studentergaarden.dk_cookie.log
+
+	#
+	# Rewrite rules
+	# -------------
+	RewriteEngine On
+	RewriteCond %{HTTP_HOST} !power\.studentergaarden\.dk
+	RewriteRule ^(.*)$ http://power.studentergaarden.dk$1 [R=301]
+
+	#
+	# Main site
+	# ---------
+	DocumentRoot /share/sites/power.studentergaarden.dk/DocumentRoot
+	<Location />
+		Order deny,allow
+		Deny from all
+		Allow from 172.16.0.0/16
+		Allow from 130.226.169.160/27
+	</Location>
+	
+	# don't know this...
+	#Alias /media/ /share/sites/power.studentergaarden.dk/media/
+	#WSGIScriptAlias / /share/sites/power.studentergaarden.dk/project.wsgi
+
+</VirtualHost>
+#+END_SRC
+** Running the server
+Start the server from a SSH connection and redirecting output to dev/null in order to avoid writing output from the server to the nohub.out file
+
+=# nohub "./blip.lua" > /dev/null 2>&1 &=
+
+Maybe setup a init script:
+https://www.debian-administration.org/articles/28
+
+** Example
+[[file:power-washing-machine.png][Example of a washing mashine]]
+
+The ripples (around 100W) in this picture comes from a washing machine. The spike at 17:44 is either the compressor in a freezer or a fridge starting up. The 2kW power draw every 13-15 minutes is the coffeemaker that keeps water hot.
 
 * License
 

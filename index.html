@@ -8,11 +8,23 @@
     <!--[if IE]><script type="text/javascript" src="excanvas.js"></script><![endif]-->
   </head>
   <body>
+    <h3>Målinger for Fensmarksgade-fløjen</h3>
     <div id="graph" style="width:800px;height:400px;"></div>
     <h3>Last update:</h3>
     <p><pre id="text"></pre></p>
+
+
+    <!-- <div id="includedContent"></div> -->
+    <!-- <script> -->
+    <!--   $(function(){ -->
+    <!--   $("#includedContent").load("/history.html"); -->
+    <!--   }); -->
+    <!-- </script> -->
+
+    <h3><a href="/history.html">Get history</a> </h3>
     <script type="text/javascript" src="jquery.js"></script>
     <script type="text/javascript" src="jquery.flot.js"></script>
+
     <script type="text/javascript">
     /*global jQuery:false, $:false */
     /*jslint whitespace:false, indent:4, onevar:false, browser:true */
@@ -26,9 +38,11 @@
                         return val.toFixed(axis.tickDecimals) + 'W';
                     }
                 },
-                colors: [ 'red' ]
+                colors: [ 'red' ],
+                legend: {position: "ne"}
             },
             data,
+            label1 = "Fensmarksgadefløjen",
             graph = $('#graph'),
             text = document.getElementById('text'),
             timezoneOffset = (new Date()).getTimezoneOffset() * 60000,
@@ -47,7 +61,7 @@
             stamp -= timezoneOffset;
 
             point[0] = stamp;
-            point[1] = 3600000 / ms;
+            point[1] = 1000/600 * 3600000 / ms;
         };
 
         fillGraph = function (values) {
@@ -57,13 +71,14 @@
 
             data = values;
 
-            $.plot(graph, [ data ], options);
+            $.plot(graph, [ {label:label1, data:data}],
+                   options);
             setTimeout(callHome, 10);
         };
 
         callHome = function () {
             $.ajax({
-                url: '/blip',
+                url: '/ajax/blip',
                 method: 'GET',
                 dataType: 'json',
                 success: onDataReceived
@@ -84,19 +99,20 @@
             }
 
             text.innerHTML = time.toString() + ' - ' + ms + 'ms -> ' + point[1].toFixed(0) + 'W';
-            $.plot(graph, [ data ], options);
+            $.plot(graph, [ {label:label1, data:data}],
+                   options);
             setTimeout(callHome, 10);
         };
 
         $.ajax({
-            url: '/last/1200000', /* last 20min */
+            url: '/ajax/last/1200000', /* last 20min */
             method: 'GET',
             dataType: 'json',
             success: fillGraph
         });
     });
     </script>
-    <a href="https://github.com/labitat/blipserver"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_green_007200.png" alt="Fork me on GitHub"></a>
+
   </body>
 <!-- vim: ts=4 sw=4 et:
 -->

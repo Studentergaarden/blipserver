@@ -19,6 +19,7 @@
 -- along with blipserver.  If not, see <http://www.gnu.org/licenses/>.
 --
 
+-- test
 local utils        = require 'lem.utils'
 local io           = require 'lem.io'
 local postgres     = require 'lem.postgres'
@@ -55,7 +56,10 @@ do
 end
 
 utils.spawn(function()
-      local serial = assert(io.open('/dev/arduino', 'r'))
+  
+
+local serial = assert(io.open('/dev/ttyACM0', 'r'))
+      -- local serial = assert(io.open('/dev/arduino', 'r'))
       -- local serial = assert(io.open('/dev/ttyUSB0', 'r'))
       local db = assert(postgres.connect('user=powermeter dbname=powermeter'))
       local now = utils.now

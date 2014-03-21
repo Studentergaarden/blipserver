@@ -94,6 +94,7 @@ $ psql -U powermeter
 #+END_SRC
 
 And you're done!
+Each datapair has a size of 12 bytes, see [[http://stackoverflow.com/a/2991419/1121523][here]] for info.
 
 Get the database size
 #+BEGIN_SRC
@@ -225,6 +226,9 @@ https://www.debian-administration.org/articles/28
 
 The ripples (around 100W) in this picture comes from a washing machine. The spike at 17:44 is either the compressor in a freezer or a fridge starting up. The 2kW power draw every 13-15 minutes is the coffeemaker that keeps water hot.
 
+* TODO
+** TO-From
+Nem måde at vise forbrug mellem to datoer + pris.
 * License
 
 blipserver is free software. It is distributed under the terms of the

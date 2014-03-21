@@ -92,7 +92,7 @@
 			/* hack to show times in local time */
 			stamp -= timezoneOffset;
 			point[0] = stamp;
-			point[1] = 1000/600 * 3600000 / ms;
+			point[1] = 1000/600 * 3600000 / ms * 4;
 		};
 
 		fillGraph = function (values)
@@ -128,7 +128,7 @@
 		callHome = function (lastts)
 		{
 			$.ajax({
-				url: '/ajax/since/' + lastts,
+				url: '/ajax/sincev1/' + lastts,
 				method: 'GET',
 				dataType: 'json',
 				success: fillGraph
@@ -156,7 +156,7 @@
 			text.innerHTML = "";
 			//alert("herp");
 			$.ajax({
-				url: '/ajax/last/' + document.getElementById('g_hours').value * 3600000, /* last X hours */
+				url: '/ajax/lastv1/' + document.getElementById('g_hours').value * 3600000, /* last X hours */
 				method: 'GET',
 				dataType: 'json',
 				success: fillGraph
@@ -201,11 +201,11 @@
     </script>
   </head>
   <body onLoad="init()">
-	Hours:<input type="number" id="g_hours" value="1" onkeyup="enterPress(event.keyCode,'update')"><button id="update" onClick="update()">Update!</button> <b>Progress:</b> <a id="text"></a><br>
+	Hours:<input type="number" id="g_hours" value="1" min="1" onkeyup="enterPress(event.keyCode,'update')"><button id="update" onClick="update()">Update!</button> <b>Progress:</b> <a id="text"></a><br>
 	<div id="graph" style="width:1000px;height:400px;"></div>
 	<b>Graph Range:</b><br>
-	Min:<input type="number" id="r_min" value="0" onkeyup="enterPress(event.keyCode,'redraw')"> 
-	Max:<input type="number" id="r_max" value="5000" onkeyup="enterPress(event.keyCode,'redraw')"> 
+	Min:<input type="number" id="r_min" value="0" min="0" step="1000" onkeyup="enterPress(event.keyCode,'redraw')"> 
+	Max:<input type="number" id="r_max" value="15000" min="0" step="1000" onkeyup="enterPress(event.keyCode,'redraw')"> 
 	Average Count:<input type="number" id="avg_count" value="100" onkeyup="enterPress(event.keyCode,'redraw')">
 	<button id="redraw" onClick="redraw()">ReDraw!</button><br>
 	<b>Graph Selectors:</b><br>

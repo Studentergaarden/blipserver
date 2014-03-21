@@ -8,11 +8,26 @@
     <!--[if IE]><script type="text/javascript" src="excanvas.js"></script><![endif]-->
   </head>
   <body>
+    <h2>Strømforbruget på Studentergården</h2>
+    <p>Dette er et forsøg. Studentergården får strøm fra to målerskabe - det ene sidder i rummet med opvaskemiddel, det andet sidder over for kostumekælderen.<br>
+        Graferne herunder viser det aktuelle strømforbrug for de to skabe og tilsammen giver de hele SG's strømforbrug de sidste tyve minutter.<br>
+        Ved at trykke på <a href="/history.html">Get history</a> kan strømforbruget ses vilkårligt langt tilbage. Denne funktion virker kun for Fensmarksgadefløjen da jeg er løbet tør for whiskey og vil i seng.<br>
+            God fornøjelse :) <br><br>
+              PS. Du kan nå denne side ved at skrive <a href="http://power/">power/</a> eller <a href="http://power.studentergaarden.dk">power.studentergaarden.dk</a> i din browser.
+      </p>
+
     <h3>Målinger for Fensmarksgade-fløjen</h3>
     <div id="graph" style="width:800px;height:400px;"></div>
-    <h3>Last update:</h3>
+    <h4>Last update:</h4>
     <p><pre id="text"></pre></p>
+    <p><pre id="textUsage1"></pre></p>
 
+
+    <h3>Målinger for Arresøgade-fløjen</h3>
+    <div id="graph2" style="width:800px;height:400px;"></div>
+    <h4>Last update:</h4>
+    <p><pre id="text2"></pre></p>
+    <p><pre id="textUsage2"></pre></p>
 
     <!-- <div id="includedContent"></div> -->
     <!-- <script> -->
@@ -25,7 +40,17 @@
     <script type="text/javascript" src="jquery.js"></script>
     <script type="text/javascript" src="jquery.flot.js"></script>
 
+
     <script type="text/javascript">
+    var loki = new Boolean(false);
+    // var loki = new Boolean(true);
+    var str_url = '';
+    if (loki == true){
+       str_url = '/ajax/';
+    }else{
+       str_url = ''; 
+    }
+
     /*global jQuery:false, $:false */
     /*jslint whitespace:false, indent:4, onevar:false, browser:true */
     $(function () {
@@ -49,7 +74,10 @@
             preparePoint,
             fillGraph,
             callHome,
-            onDataReceived;
+            onDataReceived,
+            textUsage = document.getElementById('textUsage1'),
+            getUsage,
+            onUsageRecieved;
 
         preparePoint = function (point) {
             var stamp = point[0],
@@ -61,7 +89,7 @@
             stamp -= timezoneOffset;
 
             point[0] = stamp;
-            point[1] = 1000/600 * 3600000 / ms;
+            point[1] = 1000/600 * 3600000 / ms * 4;
         };
 
         fillGraph = function (values) {
@@ -78,7 +106,8 @@
 
         callHome = function () {
             $.ajax({
-                url: '/ajax/blip',
+                //url: 'blipv1',
+                url: str_url+'blipv1',
                 method: 'GET',
                 dataType: 'json',
                 success: onDataReceived
@@ -101,17 +130,172 @@
             text.innerHTML = time.toString() + ' - ' + ms + 'ms -> ' + point[1].toFixed(0) + 'W';
             $.plot(graph, [ {label:label1, data:data}],
                    options);
+            setTimeout(getUsage, 5000); /* only update usage every 5 sec */
             setTimeout(callHome, 10);
         };
 
+       getUsage = function () {
+            var time = 24 * 3600000; /* last 24 hours */
+            $.ajax({
+                // url: 'usagev1/'+time,
+                url: str_url+'usagev1/'+time,
+                method: 'GET',
+                dataType: 'json',
+                success: onUsageRecieved
+            });
+        };
+        onUsageRecieved = function (point) {
+            /* receive the number of blips during the last xx hours */
+            var blips = point[0],
+                usage = blips/600 * 4,
+                price = usage*2;
+            usage = usage.toFixed(2);
+            price = price.toFixed(2);
+            textUsage.innerHTML = '<b>Usage last 24 hours</b>: ' + usage  + ' kWh ' + '-> <b>price: </b>' + price + 'kr/day';
+        };
+
+        /* get usage immediately */
+        getUsage();
+
         $.ajax({
-            url: '/ajax/last/1200000', /* last 20min */
+            // url: 'lastv1/1200000', /* last 20min */
+            url: str_url+'lastv1/1200000',
             method: 'GET',
             dataType: 'json',
             success: fillGraph
         });
     });
     </script>
+
+
+
+
+    <script type="text/javascript">
+    var loki = new Boolean(false);
+    // var loki = new Boolean(true);
+    var str_url = '';
+    if (loki == true){
+       str_url = '/ajax/';
+    }else{
+       str_url = ''; 
+    }
+
+    /*global jQuery:false, $:false */
+    /*jslint whitespace:false, indent:4, onevar:false, browser:true */
+    $(function () {
+        var options = {
+                lines: { show: true },
+                xaxis: { mode: 'time' },
+                yaxis: {
+                    min: 0,
+                    tickFormatter: function (val, axis) {
+                        return val.toFixed(axis.tickDecimals) + 'W';
+                    }
+                },
+                colors: [ 'red' ],
+                legend: {position: "ne"}
+            },
+            data,
+            label1 = "Arresøgadefløjen",
+            graph = $('#graph2'),
+            text = document.getElementById('text2'),
+            timezoneOffset = (new Date()).getTimezoneOffset() * 60000,
+            preparePoint,
+            fillGraph,
+            callHome,
+            onDataReceived,
+            textUsage = document.getElementById('textUsage2'),
+            getUsage,
+            onUsageRecieved;
+
+        preparePoint = function (point) {
+            var stamp = point[0],
+                ms = point[1];
+
+            stamp -= ms / 2;
+
+            /* hack to show times in local time */
+            stamp -= timezoneOffset;
+
+            point[0] = stamp;
+            point[1] = 1000/600 * 3600000 / ms * 4;
+        };
+
+        fillGraph = function (values) {
+            for (i in values) {
+                preparePoint(values[i]);
+            }
+
+            data = values;
+
+            $.plot(graph, [ {label:label1, data:data}],
+                   options);
+            setTimeout(callHome, 10);
+        };
+
+        callHome = function () {
+            $.ajax({
+                //url: 'blipv1',
+                url: str_url+'blipv2',
+                method: 'GET',
+                dataType: 'json',
+                success: onDataReceived
+            });
+        };
+ 
+        onDataReceived = function (point) {
+            var stamp = point[0],
+                ms = point[1],
+                time = new Date(stamp);
+
+            preparePoint(point);
+            data.push(point);
+
+            stamp = point[0] - 1200000; /* 20min */
+            while (data[0][0] < stamp) {
+                data.shift();
+            }
+
+            text.innerHTML = time.toString() + ' - ' + ms + 'ms -> ' + point[1].toFixed(0) + 'W';
+            $.plot(graph, [ {label:label1, data:data}],
+                   options);
+            setTimeout(getUsage, 5000); /* only update usage every 5 sec */
+            setTimeout(callHome, 10);
+        };
+
+       getUsage = function () {
+            var time = 24 * 3600000; /* last 24 hours */
+            $.ajax({
+                // url: 'usagev2/'+time,
+                url: str_url+'usagev2/'+time,
+                method: 'GET',
+                dataType: 'json',
+                success: onUsageRecieved
+            });
+        };
+        onUsageRecieved = function (point) {
+            /* receive the number of blips during the last xx hours */
+            var blips = point[0],
+                usage = blips/600 * 4,
+                price = usage*2;
+            usage = usage.toFixed(2);
+            price = price.toFixed(2);
+            textUsage.innerHTML = '<b>Usage last 24 hours</b>: ' + usage  + ' kWh ' + '-> <b>price: </b>' + price + 'kr/day';
+        };
+
+        /* get usage immediately */
+        getUsage();
+
+        $.ajax({
+            // url: 'lastv2/1200000', /* last 20min */
+            url: str_url+'lastv2/1200000',
+            method: 'GET',
+            dataType: 'json',
+            success: fillGraph
+        });
+    });
+    </script>
+
 
   </body>
 <!-- vim: ts=4 sw=4 et:

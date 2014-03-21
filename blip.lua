@@ -186,7 +186,7 @@ GET('/blipv2', function(req, res)
 end)
 
 
--- add API functions here
+-- add API calls here
 local function defineapi(ver)
 
    OPTIONS('/last' .. ver, apioptions)
@@ -237,9 +237,9 @@ local function defineapi(ver)
    end)
 end
 
--- init API's defined above
 defineapi('v1')
 defineapi('v2')
+
 
 hathaway.debug = print
 assert(Hathaway('*', arg[1] or 8080))

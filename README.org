@@ -99,7 +99,7 @@ In order to create a database for =powermeter=, one of the following methods aut
 
 See the different authentication types in the [[http://www.postgresql.org/docs/9.0/static/auth-methods.html][manual]].
 
-- peer authentication (standard):
+- =peer= (standard):
   Peer authentication means that postgres asks the operating system for your login name and uses this for authentication. To login as user =powermeter= using peer authentication on postgres, you must also be the user =powermeter= on the operating system.
   Thus:
   - create system user =powermeter=
@@ -109,7 +109,7 @@ See the different authentication types in the [[http://www.postgresql.org/docs/9
     #+END_SRC
     and then create the database.
 
-- md5 (password):
+- =md5= (password):
   PostgreSQL database passwords are separate from operating system user passwords. The password for each database user is stored in the pg_authid system catalog. Passwords can be managed with the SQL commands =CREATE USER= and =ALTER USER=, e.g., =CREATE USER foo WITH PASSWORD secret=. If no password has been set up for a user, the stored password is null and password authentication will always fail for that user.
   Thus change =pg_hba.conf=
   #+BEGIN_SRC sh
@@ -121,7 +121,7 @@ See the different authentication types in the [[http://www.postgresql.org/docs/9
   #+END_SRC
   and then create the database with the password provided when the user was created.
 
-- trust:
+- =trust=:
   When trust authentication is specified, PostgreSQL assumes that anyone who can connect to the server is authorized to access the database with whatever database user name they specify (even superuser names). Of course, restrictions made in the database and user columns still apply. This method should only be used when there is adequate operating-system-level protection on connections to the server.
   Thus change =pg_hba.conf=
   #+BEGIN_SRC sh
@@ -140,8 +140,7 @@ local   all             powermeter                              trust
 #+END_SRC
 
 
-Remember to restart =postgres=
-=sudo service postgresql restart=
+Remember to restart =postgres= with =sudo service postgresql restart=
 
 **** create database
 

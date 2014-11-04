@@ -70,52 +70,252 @@ to log some blinks.
   : returned, so use 1 plus the timestamp of the last point in the list to request
   : the next 2000 points (again using this URI).
 
-** Create database
-
+** Handling the database
+*** Setup the database and user
 Install postgresSQL
 
 =$ sudo apt-get install postgresql=
 
-Log into the database as /postgres/ user and create the user powermeter
+Log into the database as =postgres= user and create the user =powermeter=
 
 #+BEGIN_SRC
 $ sudo -u postgres psql
 =# CREATE USER powermeter CREATEDB;
 #+END_SRC
 
+For systems without sudo, first change user to postgres, then log onto the database
+#+BEGIN_SRC 
+$ su - postgres
+$ psql
+=# CREATE USER powermeter CREATEDB;
+#+END_SRC
+
 exit by C-d and create powermeter database with the relevant table.
 
-#+BEGIN_SRC
-$ createdb -U powermeter powermeter 
+**** change authentication type in config-file
+
+In order to create a database for =powermeter=, one of the following methods authentication methods must be used - change 
+=/etc/postgresql/9.3/main/pg_hba.conf= accordingly.
+
+See the different authentication types in the [[http://www.postgresql.org/docs/9.0/static/auth-methods.html][manual]].
+
+- peer authentication (standard):
+  Peer authentication means that postgres asks the operating system for your login name and uses this for authentication. To login as user =powermeter= using peer authentication on postgres, you must also be the user =powermeter= on the operating system.
+  Thus:
+  - create system user =powermeter=
+    #+BEGIN_SRC sh
+     adduser powermeter
+     su - powermeter
+    #+END_SRC
+    and then create the database.
+
+- md5 (password):
+  PostgreSQL database passwords are separate from operating system user passwords. The password for each database user is stored in the pg_authid system catalog. Passwords can be managed with the SQL commands =CREATE USER= and =ALTER USER=, e.g., =CREATE USER foo WITH PASSWORD secret=. If no password has been set up for a user, the stored password is null and password authentication will always fail for that user.
+  Thus change =pg_hba.conf=
+  #+BEGIN_SRC sh
+    local   all             all                                     peer
+  #+END_SRC
+  to
+  #+BEGIN_SRC sh
+    local   all             all                                     md5
+  #+END_SRC
+  and then create the database with the password provided when the user was created.
+
+- trust:
+  When trust authentication is specified, PostgreSQL assumes that anyone who can connect to the server is authorized to access the database with whatever database user name they specify (even superuser names). Of course, restrictions made in the database and user columns still apply. This method should only be used when there is adequate operating-system-level protection on connections to the server.
+  Thus change =pg_hba.conf=
+  #+BEGIN_SRC sh
+    local   all             all                                     peer
+  #+END_SRC
+  to
+  #+BEGIN_SRC sh
+    local   all             all                                     trust
+  #+END_SRC
+  and then create the database.
+
+If you do not want to change the settings for all user, it can be done per user basis by adding this line
+#+BEGIN_SRC sh
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+local   all             powermeter                              trust
+#+END_SRC
+
+
+Remember to restart =postgres=
+=sudo service postgresql restart=
+
+**** create database
+
+#+BEGIN_SRC sql
+$ createdb -U powermeter powermeter
 $ psql -U powermeter
 => CREATE TABLE readings (
    stamp BIGINT PRIMARY KEY,
    ms INTEGER NOT NULL );
 #+END_SRC
 
+CREATE TABLE meter (
+id INT2 PRIMARY KEY,
+description VARCHAR(80),
+location POINT); -- change to VARCHAR(80)
+ALTER TABLE meter ALTER COLUMN location TYPE VARCHAR(80);
+
+CREATE TABLE readings (
+id INT2 REFERENCES meter(id),
+stamp BIGINT PRIMARY KEY,
+ms INTEGER NOT NULL );
+
+INSERT INTO meter (id,description,location)
+VALUES (1,'Fenmarksgadefløjen','Malerrummet');
+
+INSERT INTO meter (id,description,location)
+VALUES (2,'Arresøgadefløjen','Ved kostumerummet');
+
+See all tables and their size
+\d+ 
+
+describe table:
+\d+ TABLENAME
+
+
 And you're done!
+A primary key constraint is simply a combination of a unique constraint and a not-null constraint.
 Each datapair has a size of 12 bytes, see [[http://stackoverflow.com/a/2991419/1121523][here]] for info.
 
-Get the database size
-#+BEGIN_SRC
+Get the database size (depending on your account settings it might be necessary to be user =postgres= or =root=)
+#+BEGIN_SRC sh
+$ psql -U powermeter -c "\d+"
 $ sudo -u postgres psql -U powermeter -c "\d+"
 #+END_SRC
 
 or as root
-#+BEGIN_SRC 
-$ psql -U powermeter -c "\d+"
+#+BEGIN_SRC
+# psql -U powermeter -c "\d+"
 #+END_SRC
 
 You can delete misreading by eg:
 
 =\=> DELETE FROM readings WHERE ms < 600;=
-where all reading giving a consumption higher than =1000/600 * 3400000 / 600\= 9444W= is deleted.
+where all reading giving a consumption higher than ~1000/600 * 3400000 / 600= 9444W~ is deleted.
 
-If you have problems connecting to the database, try changing =peer= to =trust= in the following file
+
+If you have problems connecting to the database, try changing =peer= to =trust= in the postgres config file(around line 91)
 
 #+BEGIN_SRC 
 $ sudo nano /etc/postgresql/9.1/main/pg_hba.conf
-local   all             all                                     peer
+local   all             all                                 peer <- change this
+#+END_SRC
+
+**** backup and restore
+
+The following commands can be run as a normal user, as long as the flag =-U powermeter= is supplied.
+Otherwise use the =postgres= user =su - postgres=
+See the [[http://www.postgresql.org/docs/9.1/static/backup-dump.html][manual]].
+
+Remember that the user and datebase must exist before restoring.
+
+Backup as plain text file
+#+BEGIN_SRC sh
+pg_dump dbname > outfile
+pg_dump -U powermeter powermeter > powermeter.dump
+#+END_SRC
+
+and restore with.
+#+BEGIN_SRC sh
+psql -U powermeter powermeter < powermeter.dump
+#+END_SRC
+
+Using compression
+#+BEGIN_SRC sh
+pg_dump -Fc -U powermeter powermeter > powermeter.dump.gz
+
+pg_restore -U powermeter -d powermeter powermeter.dump.gz
+#+END_SRC
+
+*** Additional database commands
+**** Time SQL queries 
+
+The =\timing on= command will show you the total time it took to execute
+your query and fetch the results back to the client.
+
+=EXPLAIN ANALYZE= will show you (among other things)
+the total time to execute your query on the server, not including the
+overhead of fetching results. There is however some overhead using =EXPLAIN ANALYZE= which is why =\timing= might show shorter time.
+
+For example these two queries return the number of blip the last 24 hours where the first is way faster(and simpler).
+
+#+BEGIN_SRC sql
+=> EXPLAIN ANALYSE SELECT count(*) FROM readingsv1 WHERE stamp >= 1395274528548 - 1200000
+
+=> EXPLAIN ANALYSE SELECT * INTO tmp_tbl FROM readingsv1 WHERE stamp >= 1395274528548 - 1200000; SELECT COUNT(*) FROM tmp_tbl; DROP TABLE tmp_tbl;
+#+END_SRC
+
+
+ I create a temp table from my real table with the filters applied, then I select from the temp table with a limit and offset (no limitations, so the performance is good), then select count(*) from the temp table (again no filters), then the other stuff I need and last - I drop the temp table.
+
+
+#+BEGIN_SRC sql
+SELECT * INTO tmp_tbl FROM tbl WHERE [limitations];
+SELECT * FROM tmp_tbl OFFSET 10 LIMIT 10;
+SELECT COUNT(*) FROM tmp_tbl;
+SELECT other_stuff FROM tmp_tbl;
+DROP TABLE tmp_tbl;
+#+END_SRC
+
+Catche effects, need to restart postgres and clear OS cache
+#+BEGIN_SRC sh
+/etc/init.d/postgresql-8.4 restart
+# clear cache
+sync
+sysctrl -w vm.drop_caches=3
+#+END_SRC
+
+
+This script can be used for testing commands. It reads the command from a file, execute and time and then clear the cache and restarts postgres.
+
+#+BEGIN_SRC sh
+#!/bin/bash
+
+TRIALS=2;
+
+INPUT_FROM_FILE=""
+OUTPUT_TO_FILE=""
+while getopts "i:o:" Option
+do
+  case $Option in
+  i )
+    INPUT_FROM_FILE="True";
+    INPUT_FILE=$OPTARG;;
+  o )
+    OUTPUT_TO_FILE="True";
+    OUT_FILE=$OPTARG;;
+  esac
+done
+shift $(($OPTIND - 1))
+
+if [ $INPUT_FROM_FILE ]
+then
+  echo "Reading from file $INPUT_FILE"
+  COMMAND=`more $INPUT_FILE`
+else
+  COMMAND="$@"
+fi;
+echo "$COMMAND"
+
+for trial in `seq $TRIALS`
+do
+  # Send query
+  if [ $OUTPUT_TO_FILE ]
+  then
+    psql --host $HOST --username $USER --dbname $DB --command " EXPLAIN ANALYZE $COMMAND" | awk '/ Total runtime: / {print $3}' >> $OUT_FILE
+  else
+    psql --host $HOST --username $USER --dbname $DB --command " EXPLAIN ANALYZE $COMMAND" | awk -f total_runtime.awk
+  fi;
+  # Restart server
+  /etc/init.d/postgresql-8.4 restart
+  # Clear OS cache. See: http://stackoverflow.com/questions/599719/how-to-clean-caches-used-by-the-linux-kernel
+  sync
+  sysctl -w vm.drop_caches=3
+done
 #+END_SRC
 
 ** Connect to the server
@@ -130,9 +330,9 @@ First find serial number for the Arduino (without grep a lot of info about the u
 
 Then add the rule
 
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 $ sudo nano /etc/udev/rules.d/99-usb-serial.rules
-SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="A9007Q1P", SYMLINK+="arduino"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="A9007Q1P", SYMLINK+="blipduino"
 #+END_SRC
 
 and update udev
@@ -158,7 +358,7 @@ The proxy module needs to be activated in apache
 =# a2enmod proxy_http=
 
 Then write the site-file as
-#+BEGIN_SRC
+#+BEGIN_SRC sh
 # nano /etc/apache2/sites-available/power.studentergaarden.dk
 
 # Paw's <pawsen@gmail.com> take on meassuring and displaying the general power usage on SG
@@ -216,7 +416,7 @@ Then write the site-file as
 ** Running the server
 Start the server from a SSH connection and redirecting output to dev/null in order to avoid writing output from the server to the nohub.out file
 
-=# nohub "./blip.lua" > /dev/null 2>&1 &=
+=# nohub "./blip.lua" >/dev/null 2>&1 &=
 
 Maybe setup a init script:
 https://www.debian-administration.org/articles/28
@@ -228,7 +428,7 @@ The ripples (around 100W) in this picture comes from a washing machine. The spik
 
 * TODO
 ** TO-From
-Nem måde at vise forbrug mellem to datoer + pris.
+   Nem måde at vise forbrug mellem to datoer + pris.
 * License
 
 blipserver is free software. It is distributed under the terms of the

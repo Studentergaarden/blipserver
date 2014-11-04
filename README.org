@@ -142,7 +142,7 @@ local   all             powermeter                              trust
 
 Remember to restart =postgres= with =sudo service postgresql restart=
 
-**** create database
+**** Create database
 
 #+BEGIN_SRC sql
 $ createdb -U powermeter powermeter
@@ -204,13 +204,17 @@ $ sudo nano /etc/postgresql/9.1/main/pg_hba.conf
 local   all             all                                 peer <- change this
 #+END_SRC
 
-**** backup and restore
+**** Backup and restore
 
 The following commands can be run as a normal user, as long as the flag =-U powermeter= is supplied.
 Otherwise use the =postgres= user =su - postgres=
 See the [[http://www.postgresql.org/docs/9.1/static/backup-dump.html][manual]].
 
-Remember that the user and datebase must exist before restoring.
+Remember that the user and datebase must exist before restoring, eg:
+#+BEGIN_SRC sh
+$ createuser -U postgres -d -S -e -R powermeter
+$ createdb -U powermeter powermeter
+#+END_SRC
 
 Backup as plain text file
 #+BEGIN_SRC sh

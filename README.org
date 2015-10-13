@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 * blipserver
-
 ** About
 
-This is the code running on [[power.studentergaarden.dk]] (only accessible from internal net) and [[power.labitat.dk]]
+This is the code running on [[power.studentergaarden.dk]] (only accessible
+from internal net) and is based on [[power.labitat.dk]]
 
 It reads data from the Arduino connected to the serial port,
 which monitors the power meter, and serves
@@ -18,12 +18,10 @@ Upon receiving such a value from the Arduino the server attaches a timestamp
 It also returns the point to any clients doing long-polling to update the
 live graph.
 
-The server is written in [[http://www.lua.org][lua]] using the [[https://github.com/esmil/lem][Lua Event Machine]],
-along with the [[https://github.com/esmil/lem-streams][stream]] and [[https://github.com/esmil/lem-postgres][PostgreSQL]] libraries
-for it.
+The server is written in [[http://www.lua.org][lua]] using the [[https://github.com/esmil/lem][Lua Event Machine]], along with
+the [[https://github.com/esmil/lem-streams][stream]] and [[https://github.com/esmil/lem-postgres][PostgreSQL]] libraries for it.
 
 ** API
-
 
 The database stores pairs =(stamp, ms)= for each blink of the power meter.
 Here =stamp= is a unix timestamp in milliseconds describing roughly when
@@ -39,7 +37,7 @@ to calculate the (mean) power usage in Watts during the time interval
 =[stamp - ms, stamp]=.
 
 The points can be fetched by doing HTTP requests to various URIs.
-So far [[http://json.org][JSON]] is the only output format supported and points will be
+[[http://json.org][JSON]] is the only output format supported and points will be
 returned in a JSON array =[stamp, ms]=.
 
 Clients should not assume that =stamp1 + ms2 = stamp2= for every two
@@ -48,27 +46,48 @@ rounding errors or both. Also the blip server may have been down for some
 period of time due to maintanence or other hacking and thus not been able
 to log some blinks.
 
-- /blip
-  : Use this URI to do long-polling. The server will not answer the request
-  : immediately, but instead wait until the next blink is detected and
-  : then return that point.
-  
-- /last
-  : Immediately returns the last point read.
+- /blip/id::
+  :Use this URI to do long-polling. The server will not answer the request
+  :immediately, but instead wait until the next blink is detected and
+  :then return that point.
 
-- /last/<n>
+- /last/id::
+  Immediately returns the last point read.
 
-  : Returns a list points read during the last `<n>` milliseconds.  
-  : If there are more than 2000 such points only the first 2000 will
-  : be returned.
+- /last/id/<n>::
+  Returns a list points read during the last `<n>` milliseconds.
 
-- /since/<n>
+  If there are more than 20000 such points only the first 20000 will
+  be returned.
 
-  : Returns a list of points since `<n>`, which must be a unix timestamp in milliseconds.
-  : If there are more than 2000 such points only the first 2000 will be
-  : returned, so use 1 plus the timestamp of the last point in the list to request
-  : the next 2000 points (again using this URI).
+- /since/id/<n>::
 
+  Returns a list of points since `<n>`, which must be a unix timestamp in
+  milliseconds.
+
+  If there are more than 2000 such points only the first 2000 will be
+  returned, so use 1 plus the timestamp of the last point in the list to request
+  the next 2000 points (again using this URI).
+
+- /aggregate/id/<n>/<m>/<c>::
+
+  Returns aggreated usage over a time period. The period starts at `<n>`, which
+  must be a unix timestamp in milliseconds.
+
+  The aggregation interval is `<m>`, in milliseconds. Eg. 3600000 to get usage
+  per hour. The number of points returned is `<c>`.
+
+- /hourly/id/<m>/<n>::
+
+  Returns usage per hour.
+  The usage is returned in the interval `<m>` to `<n>`, in
+  unix millisecond timestamps.
+  5 values are returned for each hour-interval:
+  * The unix millisecond timestamp of the start of the hour-interval
+  * The number of blips received during that hour-interval
+  * The average usage during that hour, in watts.
+  * The minimum blip length in that interval, in milliseconds.
+  * The maximum blip length in that interval, in milliseconds.
 ** Create database
 
 Install postgresSQL
@@ -82,14 +101,11 @@ $ sudo -u postgres psql
 =# CREATE USER powermeter CREATEDB;
 #+END_SRC
 
-exit by C-d and create powermeter database with the relevant table.
+exit by C-d and create powermeter database with the relevant tables
 
 #+BEGIN_SRC
 $ createdb -U powermeter powermeter 
-$ psql -U powermeter
-=> CREATE TABLE readings (
-   stamp BIGINT PRIMARY KEY,
-   ms INTEGER NOT NULL );
+$ psql -U powermeter -f /path/to/schema.sql
 #+END_SRC
 
 And you're done!
@@ -100,13 +116,13 @@ $ sudo -u postgres psql -U powermeter -c "\d+"
 #+END_SRC
 
 or as root
-#+BEGIN_SRC 
+#+BEGIN_SRC
 $ psql -U powermeter -c "\d+"
 #+END_SRC
 
 If you have problems connecting to the database, try changing =peer= to =trust= in the following file
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 $ sudo nano /etc/postgresql/9.1/main/pg_hba.conf
 local   all             all                                     peer
 #+END_SRC
@@ -117,9 +133,10 @@ local   all             all                                     peer
 
 ** Create alias for =/dev/ttyUSB0= 
 
-In order to give a persistent name to a specific Arduino device, we need a rule to udev.
-First find serial number for the Arduino (without grep a lot of info about the usb is shown):
-=$ udevadm info -a -n /dev/ttyUSB* | grep '{serial}' | head -n1=
+In order to give a persistent name to a specific Arduino device, we
+need a rule to udev.  First find serial number for the Arduino
+(without grep a lot of info about the usb is shown): =$ udevadm info
+-a -n /dev/ttyUSB* | grep '{serial}' | head -n1=
 
 Then add the rule
 
@@ -132,9 +149,103 @@ and update udev
 
 =$ sudo udevadm trigger --action=change=
 
-src{SYMLINK+="arduino"} means that UDEV should create a symlink =/dev/arduino= pointing to the actual =/dev/ttyUSB*= device. In other words the device names will continue to be assigned ad-hoc but the symbolic links will always point to the right device node.
+src{SYMLINK+="arduino"} means that UDEV should create a symlink
+=/dev/arduino= pointing to the actual =/dev/ttyUSB*= device. In other
+words the device names will continue to be assigned ad-hoc but the
+symbolic links will always point to the right device node.
+
+** Make apache listen to port 8080
+It is not possible to =POST= information cross domain, subdomain, or
+port number, in this case port 80 and 8080.
+
+One way to circumvent this is to set up a very simple [[http://en.wikipedia.org/wiki/Reverse_proxy][reverse proxy]]
+(using [[mod_proxy]] if you are on Apache). This will allows to use
+relative paths in the AJAX request, while the HTTP server will be
+acting as a proxy to any "remote" location.
+
+The fundamental configuration directive to set up a reverse proxy in
+mod_proxy is the ProxyPass. It will typically be used as:
+
+=ProxyPass     /ajax/     http://www.localhost:8080/=
+
+In this case one would request =/ajax/blip= with jQuery, but in fact
+the server would serve this by acting as a proxy to
+=http://www.localhost:8080/blip= internally.
+
+
+The proxy module needs to be activated in apache
+
+=# a2enmod proxy_http=
+
+Then write the site-file as
+#+BEGIN_SRC
+# emacs /etc/apache2/sites-available/power.studentergaarden.dk
+<VirtualHost power.studentergaarden.dk:80>
+	#
+	# Public information
+	# ------------------
+    ServerName power
+	# ServerAlias rating
+	ServerAdmin nu@studentergaarden.dk
+
+    ## IMPORTANT!
+    ProxyPreserveHost On
+    ProxyRequests Off
+    ## The following line is actually the only needed line!
+    ProxyPass /ajax/ http://localhost:8080/
+    ProxyPassReverse /ajax/ http://localhost:8080/
+    <Proxy *>
+        Order deny,allow
+        Allow from all
+    </Proxy>
+    ## TO HERE!
+
+	#
+	# Logging
+	# -------
+	ErrorLog /var/log/apache2/power.studentergaarden.dk_error.log
+	CustomLog /var/log/apache2/power.studentergaarden.dk_access.log combined
+	CookieLog /var/log/apache2/power.studentergaarden.dk_cookie.log
+
+	#
+	# Rewrite rules
+	# -------------
+	RewriteEngine On
+	RewriteCond %{HTTP_HOST} !power\.studentergaarden\.dk
+	RewriteRule ^(.*)$ http://power.studentergaarden.dk$1 [R=301]
+
+	#
+	# Main site
+	# ---------
+	DocumentRoot /share/sites/power.studentergaarden.dk/DocumentRoot
+	<Location />
+		Order deny,allow
+		Deny from all
+		Allow from 172.16.0.0/16
+		Allow from 130.226.169.160/27
+	</Location>
+</VirtualHost>
+#+END_SRC
+** Running the server
+
+Start the server from a SSH connection and redirecting output to
+dev/null in order to avoid writing output from the server to the
+nohub.out file
+
+=# nohub "./blip.lua" > /dev/null 2>&1 &=
+
+Maybe setup a init script:
+https://www.debian-administration.org/articles/28
+
+** Example
+[[file:power-washing-machine.png]]
+
+The ripples (around 100W) in this picture comes from a washing
+machine. The spike at 17:44 is either the compressor in a freezer or a
+fridge starting up. The 2kW power draw every 13-15 minutes is the
+coffeemaker that keeps water hot.
 
 * License
 
 blipserver is free software. It is distributed under the terms of the
-[[[http://www.fsf.org/licensing/licenses/gpl.html][GNU General Public License]]
+[[http://www.fsf.org/licensing/licenses/gpl.html][GNU General Public License]]

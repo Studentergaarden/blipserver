@@ -1,0 +1,48 @@
+# Paws <pawsen@gmail.com> take on meassuring and displaying the general power usage on SG
+<VirtualHost power.studentergaarden.dk:80>
+	#
+	# Public information
+	# ------------------
+	#ServerName rating.studentergaarden.dk
+        ServerName power
+	# ServerAlias rating
+	ServerAdmin nu@studentergaarden.dk
+  ProxyPreserveHost On
+  ProxyRequests Off
+  ProxyPass /ajax/ http://localhost:8080/
+  ProxyPassReverse /ajax/ http://localhost:8080/
+  <Proxy *>
+        Order deny,allow
+        Allow from all
+  </Proxy>
+
+	#
+	# Logging
+	# -------
+	ErrorLog /var/log/apache2/power.studentergaarden.dk_error.log
+	CustomLog /var/log/apache2/power.studentergaarden.dk_access.log combined
+	CookieLog /var/log/apache2/power.studentergaarden.dk_cookie.log
+
+	#
+	# Rewrite rules
+	# -------------
+	#RewriteEngine On
+	#RewriteCond %{HTTP_HOST} !power\.studentergaarden\.dk
+	#RewriteRule ^(.*)$ http://power.studentergaarden.dk$1 [R=301]
+
+	#
+	# Main site
+	# ---------
+	DocumentRoot /share/sites/power.studentergaarden.dk/DocumentRoot
+	<Location />
+		Order deny,allow
+		Deny from all
+		Allow from 172.16.0.0/16
+		Allow from 130.226.169.160/27
+	</Location>
+	
+	# don't know this...
+	#Alias /media/ /share/sites/power.studentergaarden.dk/media/
+	#WSGIScriptAlias / /share/sites/power.studentergaarden.dk/project.wsgi
+
+</VirtualHost>

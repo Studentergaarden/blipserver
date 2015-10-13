@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<title>Blip Server Archive</title>
+		<!--[if IE]><script type="text/javascript" src="excanvas.js"></script><![endif]-->
+		<script type="text/javascript" src="jquery.js"></script>
+		<script type="text/javascript" src="jquery.flot.js"></script>
+		<script type="text/javascript">
+		/*global jQuery:false, $:false */
+		/*jslint whitespace:false, indent:4, onevar:false, browser:true */
+		var options = {
+			lines: { show: true },
+			points: { show: false },
+			xaxis: { mode: 'time', ticks: 12 },
+			yaxis: {
+				min: 0,
+				max: 10000,
+				ticks: 25,
+				tickFormatter: function (val, axis) {
+					return val.toFixed(axis.tickDecimals) + 'W';
+                }
+            },
+			//colors: [ 'red', 'yellow', 'green' ]
+        },
+			data = Array(),
+			avgdata = Array(),
+			lastAvgCount,
+			graph,
+			text = 0,
+			timezoneOffset = (new Date()).getTimezoneOffset() * 60000,
+			preparePoint,
+			fillGraph,
+			callHome;
+
+        function average(points)
+        {
+            var interval = (document.getElementById('g_hours').value * 3600000) / document.getElementById('avg_count').value,
+				startTime = data[0][0],
+				endTime = data[points-1][0],
+				high = data[0][1],
+				average = 0,
+				low = data[0][1],
+				count = 0,
+				timeaverage = 0,
+				i,
+				n=0;
+            lastAvgCount = document.getElementById('avg_count').value;
+
+            for(i=0;i < points;i++)
+            {
+                if(data[i][0] > (startTime + (n+1) * interval))
+                {
+                    timeaverage = timeaverage / count;
+                    avgdata[0][n] = Array();
+                    avgdata[0][n][0] = timeaverage;
+                    avgdata[0][n][1] = high;
+                    avgdata[1][n] = Array();
+                    avgdata[1][n][0] = timeaverage;
+                    avgdata[1][n][1] = average / count;
+                    avgdata[2][n] = Array();
+                    avgdata[2][n][0] = timeaverage;
+                    avgdata[2][n][1] = low;
+
+                    average = 0;
+                    timeaverage = 0;
+                    count = 0;
+                    high = data[i][1];
+                    low = data[i][1];
+                    n++;
+                }
+                average += data[i][1];
+                timeaverage += data[i][0];
+                count++;
+                if(data[i][1] > high)
+                    high = data[i][1];
+                if(data[i][1] < low)
+                    low = data[i][1];
+            }
+        }
+
+        preparePoint = function (point)
+        {
+            var stamp = point[0],
+                ms = point[1];
+            stamp -= ms / 2;
+
+            /* hack to show times in local time */
+            stamp -= timezoneOffset;
+            point[0] = stamp;
+            point[1] = 1000/600 * 3600000 / ms * 4;
+        };
+
+        fillGraph = function (values)
+        {
+            var lastts = values[values.length-1][0];
+
+            for (i in values) {
+                preparePoint(values[i]);
+            }
+
+            data = data.concat(values);
+
+            if (values.length == 2000) {
+                text.innerHTML = data.length + " points.";
+                callHome(lastts);
+            } else {
+                text.innerHTML = data.length + " points. Done!";
+                average(data.length);
+                var datasets = [];
+                if(document.getElementById('actcheck').checked)
+                    datasets.push({color:'blue', data:  data });
+                if(document.getElementById('maxcheck').checked)
+                    datasets.push({color:'red', data: avgdata[0]});
+                if(document.getElementById('avgcheck').checked)
+                    datasets.push({color:'yellow', data: avgdata[1]});
+                if(document.getElementById('mincheck').checked)
+                    datasets.push({color:'green', data:  avgdata[2]});
+
+                $.plot(graph, datasets, options);
+            }
+        };
+
+        callHome = function (lastts)
+        {
+            $.ajax({
+                url: '/ajax/since/2/' + lastts,
+                method: 'GET',
+                dataType: 'json',
+                success: fillGraph
+            });
+        };
+
+		function init()
+		{
+			text = document.getElementById('text');
+			graph = $('#graph');
+		}
+		function update()
+		{
+			if(document.getElementById('r_min').value >= 0 &&
+				document.getElementById('r_max').value > 0 && document.getElementById('g_hours').value > 0)
+			{
+				options.yaxis.min = document.getElementById('r_min').value;
+				options.yaxis.max = document.getElementById('r_max').value;
+				data = [];
+				avgdata = [];
+				avgdata[0] = Array();
+				avgdata[1] = Array();
+				avgdata[2] = Array();
+
+				text.innerHTML = "";
+				//alert("herp");
+				$.ajax({
+					url: '/ajax/last/2/' + document.getElementById('g_hours').value * 3600000, /* last X hours */
+					method: 'GET',
+					dataType: 'json',
+					success: fillGraph
+				});
+			}
+		}
+		function redraw()
+		{
+			if(document.getElementById('r_min').value >= 0 &&
+				document.getElementById('r_max').value > 0 && document.getElementById('g_hours').value > 0)
+			{
+				if(lastAvgCount != document.getElementById('avg_count').value)
+				{
+					avgdata = [];
+					avgdata[0] = Array();
+					avgdata[1] = Array();
+					avgdata[2] = Array();
+					average(data.length);
+				}
+				options.yaxis.min = document.getElementById('r_min').value;
+				options.yaxis.max = document.getElementById('r_max').value;
+				var datasets = [];
+				if(document.getElementById('actcheck').checked)
+					datasets.push({color:'blue', data:  data });
+				if(document.getElementById('maxcheck').checked)
+					datasets.push({color:'red', data: avgdata[0]});
+				if(document.getElementById('avgcheck').checked)
+					datasets.push({color:'yellow', data: avgdata[1]});
+				if(document.getElementById('mincheck').checked)
+					datasets.push({color:'green', data:  avgdata[2]});
+
+				$.plot(graph, datasets, options);
+			}
+		}
+
+		function enterPress(key, target)
+		{
+			if(key == 13)
+				document.getElementById(target).click();
+		}
+		//$("#update").click(update());
+		</script>
+	</head>
+	<body onLoad="init()">
+		Hours:<input type="number" id="g_hours" value="1" onkeyup="enterPress(event.keyCode,'update')"><button id="update" onClick="update()">Update!</button> <b>Progress:</b> <a id="text"></a><br>
+		<div id="graph" style="width:1000px;height:400px;"></div>
+		<b>Graph Range:</b><br>
+		Min:<input type="number" id="r_min" value="0" onkeyup="enterPress(event.keyCode,'redraw')">
+		Max:<input type="number" id="r_max" value="10000" onkeyup="enterPress(event.keyCode,'redraw')">
+		Average Count:<input type="number" id="avg_count" value="100" onkeyup="enterPress(event.keyCode,'redraw')">
+		<button id="redraw" onClick="redraw()">ReDraw!</button><br>
+		<b>Graph Selectors:</b><br>
+		<input type="checkbox" id="actcheck" value="1" checked="checked">Actual<br>
+		<input type="checkbox" id="maxcheck" value="1">Max<br>
+		<input type="checkbox" id="avgcheck" value="1">Average<br>
+		<input type="checkbox" id="mincheck" value="1">Min<br>
+	</body>
+	<!-- vim: ts=4 sw=4 et:
+	-->
+</html>

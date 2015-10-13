@@ -1,10 +1,10 @@
-//var loki = new Boolean(false);
-var loki = new Boolean(true);
+var loki = new Boolean(false);
+//var loki = new Boolean(true);
 var str_url = '';
 if (loki == true){
   str_url = '/ajax/';
 }else{
-  str_url = '';
+  str_url = 'http://power/ajax/';
 }
 
 labels = ["Fensmarksgadefløjen", "Arresøgadefløjen"];

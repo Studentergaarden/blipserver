@@ -32,43 +32,89 @@ local assert = assert
 local format = string.format
 local tonumber = tonumber
 
-local sgbus = {}
+local function log_dev(conn, id, desc)
+	print(conn, id, desc)
+	local file = io.open("/home/pawse/lua/log/power_device.log", "a")
+	local time = os.date("*t")
+	file:write(("  %04d/%02d/%02d %02d:%02d:%02d\n"):format(time.year, time.month, time.day, time.hour, time.min, time.sec))
+	file:write('added device: ' .. conn .. ', Id: ' .. id .. ', desc: ' .. desc .. '.'  .. "\n")
+	file:close()
+end
+local function unquote(s)
+	local repl = function(m) return string.char(tonumber(m, 16)) end
+	local u = s:gsub('\\([0-9a-fA-F][0-9a-fA-F])', repl)
+	return u
+end
 
+
+local sgbus = {}
+--local function socket_handler(client)
 utils.spawn(function()
-	local serial = assert(io.open('/dev/blipduino', 'r'))
+	local client = assert(io.open('/dev/blipduino', 'r+'))
+	print('client connected')
+
 	local db = assert(postgres.connect('user=powermeter dbname=powermeter'))
 	local now = utils.now
 	assert(db:prepare('put', 'INSERT INTO readings VALUES ($1, $2, $3)'))
 
+	local connect_log
 	-- discard first two readings
-	assert(serial:read('*l'))
-	assert(serial:read('*l'))
-
-	while true do
-		local line = assert(serial:read('*l'))
-		local stamp = format('%0.f', now() * 1000)
-
-		--dev is id
-		local dev, val = line:match("(%S+)%s+(.+)")
-		if dev then
-		   -- REMEMBER: ID SHOULD BE STRING. otherwise change the /blip call
-		   if dev == 'V2' then
-			  dev = tostring(2)
-		   else
-			  dev = tostring(1)
-		   end
-		   --print(stamp, ms)
-		   if not sgbus[dev] then
-			  sgbus[dev] = queue.new()
+	for i=1,2 do
+		local line = assert(client:read('*l'))
+		local connect = line:match("^(CONNECTED.+)")
+		if connect then
+			connect_log = connect
+			print(connect)
+		else
+			local id, desc_q = line:match("^INFO%s+([0-9]+)%s+(.+)")
+			if id then
+				local desc = unquote(desc_q)
+				--log_dev(connect_log, id, desc)
+				-- run db-stuff
 			end
-			local q = sgbus[dev]
-			if q then
-			   q:signal(stamp, val)
-			end
-			assert(db:run('put', dev, stamp, val))
 		end
 	end
-end)
+
+	while true do
+		local line = assert(client:read('*l'))
+		local stamp = format('%0.f', now() * 1000)
+
+		connect = line:match("^(CONNECTED.*)")
+		if connect then
+			connect_log = connect
+			print(connect)
+		else
+			local id, desc_q = line:match("^INFO%s+([0-9]+)%s+(.+)")
+			if id then
+				local desc = unquote(desc_q)
+				--log_dev(connect_log, id, desc)
+					-- run db-stuff
+			else
+				-- fordi [0-9]+ ikke starter med ^, bliver v1 og v2 også fanget
+				local id, val = line:match("([0-9]+)%s+([0-9]+)")
+				if id then
+					print(id, stamp, val)
+					if not sgbus[id] then
+						sgbus[id] = queue.new()
+					end
+					local q = sgbus[id]
+					if q then
+						q:signal(stamp, val)
+					end
+					assert(db:run('put', id, stamp, val))
+				end
+			end
+		end
+	end
+
+	print('client disconnected')
+	client:close()
+end
+)
+--local serial = assert(io.open('/dev/blipduino', 'r'))
+--local tcp_socket = assert(io.tcp.listen('*', '8081'))
+--utils.spawn(tcp_socket.autospawn, tcp_socket, socket_handler)
+--utils.spawn(socket_handler(serial))
 
 
 local function sendfile(content, path)
@@ -231,7 +277,7 @@ end)
 OPTIONSM('^/usage/(%d+)/(%d+)$', apioptions)
 GETM('^/usage/(%d+)/(%d+)$', function(req, res, dev, ms)
 		if #ms > 15 then
-		   httpserv.bad_request(req, res)
+			httpserv.bad_request(req, res)
 		   return
 		end
 		apiheaders(res.headers)

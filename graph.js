@@ -35,6 +35,9 @@ $('.livegraph').each( function(){
       preparePoint,
       fillGraph,
       callHome,
+	  initReq,
+      pollError,
+      initError,
       onDataReceived,
       textUsage = document.getElementById('textUsage'+idServer[idValue]),
       getUsage,
@@ -70,10 +73,28 @@ $('.livegraph').each( function(){
       url: str_url+'blip/'+idServer[idValue],
       method: 'GET',
       dataType: 'json',
-      success: onDataReceived
+      success: onDataReceived,
+	  error: pollError
     });
   };
 
+  pollError = function() {
+    setTimeout(callHome, 20000);
+  };
+
+  initReq = function() {
+	$.ajax({
+      /* last 20min */
+      url: str_url+'last/'+idServer[idValue]+'/1200000',
+      method: 'GET',
+      dataType: 'json',
+      success: fillGraph
+	});
+  };
+
+  initError = function() {
+    setTimeout(initReq, 20000);
+  };
   onDataReceived = function (point) {
     var stamp = point[0],
         ms = point[1],
@@ -114,15 +135,9 @@ $('.livegraph').each( function(){
     textUsage.innerHTML = '<b>Usage last 24 hours</b>: ' + usage  + ' kWh ' + '-> <b>price: </b>' + price + 'kr/day';
   };
 
+  initReq();
   /* get usage immediately */
   // getUsage();
-  $.ajax({
-    /* last 20min */
-    url: str_url+'last/'+idServer[idValue]+'/1200000',
-    method: 'GET',
-    dataType: 'json',
-    success: fillGraph
-  });
 });
 
 
